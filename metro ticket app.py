@@ -436,9 +436,10 @@
 #     root.mainloop()
 import tkinter as tk
 from tkinter import ttk, messagebox
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import qrcode
 from datetime import datetime
+import uuid
 
 class MetroApp:
     def __init__(self, root):
@@ -447,37 +448,27 @@ class MetroApp:
         self.root.geometry("520x920")
         self.root.config(bg="#f0f2f5")
 
-        # ===== OFFICIAL BMRCL DISTANCE DATA (KM from Line Start) =====
-        # Distances are mapped to match official BMRCL route specifications
+        # ===== DISTANCE DATA =====
         self.purple_dist = {
-            "Whitefield (Kadugodi)": 0.0, "KR Puram": 5.4, "Swami Vivekananda Road": 7.9, 
-            "Indiranagar": 9.1, "Trinity": 11.2, "Mahatma Gandhi (MG) Road": 12.0, 
-            "Nadaprabhu Kempegowda Station (Majestic)": 15.1, "Magadi Road": 17.4, 
-            "Vijayanagar": 20.9, "Hosahalli": 22.1, "Mysore Road": 25.1, 
-            "Kengeri": 32.6, "Challaghatta": 34.6
+            "Whitefield (Kadugodi)": 0.0, "KR Puram": 5.4,
+            "Indiranagar": 9.1, "MG Road": 12.0,
+            "Majestic": 15.1, "Vijayanagar": 20.9,
+            "Kengeri": 32.6
         }
 
         self.green_dist = {
-            "Madavara (BIEC)": 0.0, "Nagasandra": 1.6, "Peenya": 4.8, "Yeshwanthpur": 7.3, 
-            "Mantri Square Mall": 10.9, "Nadaprabhu Kempegowda Station (Majestic)": 12.0, 
-            "Chickpete": 13.5, "KR Market": 14.7, "National College": 16.0, "Lalbagh": 17.2, 
-            "South End Circle": 18.1, "Jayanagar": 19.3, "RV Road": 20.5, "Banashankari": 21.8, 
-            "JP Nagar": 23.1, "Yelachenahalli": 25.3, "Konanakunte Cross": 26.5, 
-            "Doddakallasandra": 27.8, "Vajarahalli": 28.9, "Thalaghattapura": 30.1, "Silk Institute": 31.2
+            "Nagasandra": 1.6, "Peenya": 4.8,
+            "Yeshwanthpur": 7.3, "Majestic": 12.0,
+            "Jayanagar": 19.3, "Silk Institute": 31.2
         }
 
-        self.yellow_dist = {
-            "RV Road": 0.0, "Ragigudda": 1.4, "Jayadeva Hospital": 2.7, "BTM Layout": 3.9, 
-            "Central Silk Board": 5.1, "Bommanahalli": 6.5, "Kudlu Gate": 9.4, "Singasandra": 10.7, 
-            "HSR Layout": 12.1, "Electronic City": 15.2, "Electronics City": 16.5, "Bommasandra": 19.1
-        }
+        self.interchange = "Majestic"
 
-        self.interchange_majestic = "Nadaprabhu Kempegowda Station (Majestic)"
-        self.interchange_rvroad = "RV Road"
-        
-        self.all_stations = sorted(list(set(list(self.purple_dist.keys()) + 
-                                           list(self.green_dist.keys()) + 
-                                           list(self.yellow_dist.keys()))))
+        self.all_stations = sorted(list(set(
+            list(self.purple_dist.keys()) +
+            list(self.green_dist.keys())
+        )))
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -486,126 +477,135 @@ class MetroApp:
             self.header_photo = ImageTk.PhotoImage(img)
             tk.Label(self.root, image=self.header_photo, bg="#f0f2f5").pack(pady=10)
         except:
-            tk.Label(self.root, text="🚇 VMETRO SMART", font=("Helvetica", 24, "bold"), 
+            tk.Label(self.root, text="🚇 VMETRO", font=("Helvetica", 24, "bold"),
                      bg="#2E3192", fg="white", height=4).pack(fill="x")
 
-        self.card = tk.Frame(self.root, bg="white", padx=30, pady=20, relief="flat")
+        self.card = tk.Frame(self.root, bg="white", padx=30, pady=20)
         self.card.place(relx=0.5, rely=0.6, anchor="center", width=460, height=680)
 
-        tk.Label(self.card, text="VMETRO DIGITAL TICKET", font=("Arial", 14, "bold"), bg="white", fg="#333").pack(pady=5)
+        tk.Label(self.card, text="VMETRO DIGITAL TICKET",
+                 font=("Arial", 14, "bold"), bg="white").pack(pady=5)
 
         self.create_label("PASSENGER NAME")
-        self.name_entry = tk.Entry(self.card, font=("Arial", 12), bg="#f8f9fa", relief="flat", bd=8)
-        self.name_entry.pack(fill="x", pady=2)
+        self.name_entry = tk.Entry(self.card, font=("Arial", 12))
+        self.name_entry.pack(fill="x")
 
-        self.create_label("NUMBER OF PASSENGERS")
-        self.pass_count = ttk.Spinbox(self.card, from_=1, to=10, font=("Arial", 11))
+        self.create_label("PASSENGERS")
+        self.pass_count = ttk.Spinbox(self.card, from_=1, to=10)
         self.pass_count.set(1)
-        self.pass_count.pack(fill="x", pady=2)
+        self.pass_count.pack(fill="x")
 
-        self.create_label("FROM STATION")
-        self.src_cb = ttk.Combobox(self.card, values=self.all_stations, state="readonly", font=("Arial", 11))
-        self.src_cb.pack(fill="x", pady=2)
+        self.create_label("FROM")
+        self.src_cb = ttk.Combobox(self.card, values=self.all_stations, state="readonly")
+        self.src_cb.pack(fill="x")
 
-        self.create_label("TO STATION")
-        self.dest_cb = ttk.Combobox(self.card, values=self.all_stations, state="readonly", font=("Arial", 11))
-        self.dest_cb.pack(fill="x", pady=2)
+        self.create_label("TO")
+        self.dest_cb = ttk.Combobox(self.card, values=self.all_stations, state="readonly")
+        self.dest_cb.pack(fill="x")
 
-        tk.Button(self.card, text="GENERATE SMART TICKET", bg="#2E3192", fg="white", 
-                  font=("Arial", 12, "bold"), relief="flat", cursor="hand2", 
-                  command=self.generate_ticket).pack(fill="x", pady=15, ipady=10)
+        tk.Button(self.card, text="GENERATE TICKET",
+                  bg="#2E3192", fg="white",
+                  command=self.generate_ticket).pack(fill="x", pady=15)
 
-        self.ticket_display = tk.Frame(self.card, bg="white", bd=1, relief="solid")
-        self.qr_img_label = tk.Label(self.ticket_display, bg="white")
-        self.qr_img_label.pack(pady=5)
-        self.ticket_info = tk.Label(self.ticket_display, bg="white", font=("Courier", 9), justify="left")
-        self.ticket_info.pack(pady=5)
+        self.ticket_display = tk.Frame(self.card, bg="white")
+        self.qr_label = tk.Label(self.ticket_display, bg="white")
+        self.qr_label.pack()
+        self.ticket_info = tk.Label(self.ticket_display, bg="white",
+                                   font=("Courier", 9), justify="left")
+        self.ticket_info.pack()
 
     def create_label(self, text):
-        tk.Label(self.card, text=text, font=("Arial", 8, "bold"), bg="white", fg="#888").pack(anchor="w", pady=(5,0))
+        tk.Label(self.card, text=text, bg="white",
+                 font=("Arial", 9, "bold")).pack(anchor="w")
 
-    def get_exact_dist(self, s, d):
-        # 1. Same Line Logic
+    def get_distance(self, s, d):
         if s in self.purple_dist and d in self.purple_dist:
             return abs(self.purple_dist[d] - self.purple_dist[s])
         if s in self.green_dist and d in self.green_dist:
             return abs(self.green_dist[d] - self.green_dist[s])
-        if s in self.yellow_dist and d in self.yellow_dist:
-            return abs(self.yellow_dist[d] - self.yellow_dist[s])
 
-        # 2. Interchange Logic
-        # Case A: Purple <-> Green (Via Majestic)
-        if (s in self.purple_dist or d in self.purple_dist) and (s in self.green_dist or d in self.green_dist):
-            d1 = abs(self.purple_dist.get(s, self.purple_dist.get(d)) - self.purple_dist[self.interchange_majestic])
-            d2 = abs(self.green_dist.get(d, self.green_dist.get(s)) - self.green_dist[self.interchange_majestic])
-            return d1 + d2
-        
-        # Case B: Green <-> Yellow (Via RV Road)
-        if (s in self.green_dist or d in self.green_dist) and (s in self.yellow_dist or d in self.yellow_dist):
-            d1 = abs(self.green_dist.get(s, self.green_dist.get(d)) - self.green_dist[self.interchange_rvroad])
-            d2 = abs(self.yellow_dist.get(d, self.yellow_dist.get(s)) - self.yellow_dist[self.interchange_rvroad])
-            return d1 + d2
+        # Interchange
+        d1 = abs(self.purple_dist.get(s, 0) - self.purple_dist[self.interchange])
+        d2 = abs(self.green_dist.get(d, 0) - self.green_dist[self.interchange])
+        return d1 + d2
 
-        return 10.0 # Default fallback
+    def calculate_fare(self, dist, count):
+        if dist <= 2: fare = 10
+        elif dist <= 5: fare = 20
+        elif dist <= 10: fare = 30
+        elif dist <= 15: fare = 45
+        else: fare = 60
+        return fare * int(count)
 
-    def calculate_real_fare(self, distance_km, passenger_count):
-        # Official BMRCL Slab Logic
-        if distance_km <= 2: base_fare = 10
-        elif distance_km <= 4: base_fare = 20
-        elif distance_km <= 6: base_fare = 30
-        elif distance_km <= 10: base_fare = 45
-        elif distance_km <= 15: base_fare = 60
-        else: base_fare = 95 # Maximum Cap
-
-        return base_fare * int(passenger_count)
+    def save_ticket_image(self, text, ticket_id):
+        img = Image.new("RGB", (400, 500), "white")
+        draw = ImageDraw.Draw(img)
+        draw.text((20, 20), text, fill="black")
+        img.save(f"ticket_{ticket_id}.png")
 
     def generate_ticket(self):
         name = self.name_entry.get().upper()
-        source = self.src_cb.get()
+        src = self.src_cb.get()
         dest = self.dest_cb.get()
         count = self.pass_count.get()
 
-        if not name or not source or not dest:
-            messagebox.showwarning("Incomplete", "Please fill in all details!")
-            return
-        
-        if source == dest:
-            messagebox.showwarning("Error", "Source and Destination cannot be same!")
+        if not name or not src or not dest:
+            messagebox.showwarning("Error", "Fill all details")
             return
 
-        exact_km = self.get_exact_dist(source, dest)
-        total_fare = self.calculate_real_fare(exact_km, count)
+        if src == dest:
+            messagebox.showwarning("Error", "Same station selected")
+            return
 
-        receipt_content = f"""
-------------------------------
-   VISHWA SMART METRO E-TICKET
-------------------------------
-PASSENGER : {name}
-ADULTS    : {count}
-FROM      : {source}
-TO        : {dest}
-DISTANCE  : {exact_km:.2f} KM
-------------------------------
-TOTAL FARE: RS {total_fare}
-TIME      : {datetime.now().strftime('%H:%M:%S')}
-DATE      : {datetime.now().strftime('%d-%b-%Y')}
-------------------------------
-THANK YOU FOR CHOOSING
-VMETRO BENGALURU!
-------------------------------
+        dist = self.get_distance(src, dest)
+        fare = self.calculate_fare(dist, count)
+
+        ticket_id = str(uuid.uuid4())[:8]
+        now = datetime.now().strftime("%d-%m-%Y %H:%M")
+
+        text = f"""
+========================
+🎫 VMETRO TICKET
+========================
+ID: {ticket_id}
+
+Name: {name}
+Passengers: {count}
+
+From: {src}
+To: {dest}
+
+Distance: {dist:.2f} km
+Fare: ₹{fare}
+
+Time: {now}
+========================
 """
-        qr = qrcode.make(receipt_content)
-        qr.save("ticket_output.png")
 
-        self.ticket_display.pack(fill="both", expand=True, pady=10)
-        qr_raw = Image.open("ticket_output.png").resize((150, 150))
-        self.current_qr = ImageTk.PhotoImage(qr_raw)
-        self.qr_img_label.config(image=self.current_qr)
-        
-        self.ticket_info.config(text=f"Confirmed: {name}\nFare: ₹{total_fare} |Tota Distance: {exact_km:.2f}km")
-        messagebox.showinfo("Success", f"Ticket Generated!\nTotal Distance: {exact_km:.2f} km")
+        # QR
+        qr = qrcode.make(text)
+        qr.save("qr.png")
 
+        qr_img = Image.open("qr.png").resize((150, 150))
+        self.qr_photo = ImageTk.PhotoImage(qr_img)
+        self.qr_label.config(image=self.qr_photo)
+
+        self.ticket_display.pack(pady=10)
+        self.ticket_info.config(text=text)
+
+        # Save image
+        self.save_ticket_image(text, ticket_id)
+
+        messagebox.showinfo("Success", "Ticket Generated!")
+
+# ===== RUN APP =====
 if __name__ == "__main__":
     root = tk.Tk()
+
+    # bring window front
+    root.lift()
+    root.attributes('-topmost', True)
+    root.after(1000, lambda: root.attributes('-topmost', False))
+
     app = MetroApp(root)
     root.mainloop()

@@ -1,0 +1,10 @@
+# Ignore python cache
+__pycache__/
+
+# Ignore temporary ticket images
+*.png
+!met.jpg
+
+# Ignore Virtual Environment
+.venv/
+env/
